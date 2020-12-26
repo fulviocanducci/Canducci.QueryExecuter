@@ -26,23 +26,25 @@ namespace Canducci.QueryExecuter
 
         public T Insert<T>(T data)
         {
-            ClassDescription<T> classDescription = new ClassDescription<T>(data);
-            Description information = classDescription.GetInformation();
-
-            var query = new Query(information.TableName.Name);
-            query.AsInsert(information.Datas, information.PrimaryKey.Auto); 
-            var result = Compiler.Compile(query);
-
-            if (information.PrimaryKey.Auto)
+            using (ClassDescription<T> classDescription = new ClassDescription<T>(data))
             {
-                int value = Connection.ExecuteScalar<int>(result.Sql, result.NamedBindings);
-                classDescription.SetPrimaryKeyValueInModel(value);
-            } 
-            else
-            {
-                Connection.Execute(result.Sql, result.NamedBindings);
+                Description information = classDescription.GetInformation();
+
+                var query = new Query(information.TableName.Name);
+                query.AsInsert(information.Datas, information.PrimaryKey.Auto);
+                var result = Compiler.Compile(query);
+
+                if (information.PrimaryKey.Auto)
+                {
+                    int value = Connection.ExecuteScalar<int>(result.Sql, result.NamedBindings);
+                    classDescription.SetPrimaryKeyValueInModel(value);
+                }
+                else
+                {
+                    Connection.Execute(result.Sql, result.NamedBindings);
+                }
+                return data;
             }
-            return data;
         }
 
         //public Task<int> InsertAsync<T>(T data)

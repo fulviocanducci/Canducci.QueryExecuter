@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Canducci.QueryExecuter.Internals
 {
-    internal class ClassDescription<T>
+    internal class ClassDescription<T>: System.IDisposable
     {
         public PropertyInfo[] Properties { get; private set; }
         public PrimaryKeyAttribute PrimaryKey { get; private set; }
@@ -71,7 +71,11 @@ namespace Canducci.QueryExecuter.Internals
 
             return (IReadOnlyDictionary<string, object>)data;
         }
+
         #endregion
-        
+        public void Dispose()
+        {
+            System.GC.SuppressFinalize(this);
+        }
     }
 }
