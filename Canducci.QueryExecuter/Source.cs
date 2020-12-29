@@ -8,13 +8,13 @@ using Dapper;
 using SqlKata;
 using SqlKata.Compilers;
 using System.Data.Common;
-using System.Threading.Tasks;
+using System.Linq;
 //https://docs.microsoft.com/pt-br/dotnet/csharp/language-reference/preprocessor-directives/preprocessor-if
 namespace Canducci.QueryExecuter
 {
     public struct SourceAsInsert
     {
-        
+
         private readonly DbConnection Connection;
         private readonly Compiler Compiler;
 
@@ -28,13 +28,12 @@ namespace Canducci.QueryExecuter
         {
             using (ClassDescription<T> classDescription = new ClassDescription<T>(data))
             {
-                Description information = classDescription.GetInformation();
-
-                var query = new Query(information.TableName.Name);
-                query.AsInsert(information.Datas, information.PrimaryKey.Auto);
+                var auto = classDescription.PrimaryKeys.PrimaryKeyValues.Any(s => s.Auto);
+                var query = new Query(classDescription.TableName.Name);
+                query.AsInsert(classDescription.Datas, auto);
                 var result = Compiler.Compile(query);
 
-                if (information.PrimaryKey.Auto)
+                if (auto)
                 {
                     int value = Connection.ExecuteScalar<int>(result.Sql, result.NamedBindings);
                     classDescription.SetPrimaryKeyValueInModel(value);
@@ -43,6 +42,7 @@ namespace Canducci.QueryExecuter
                 {
                     Connection.Execute(result.Sql, result.NamedBindings);
                 }
+
                 return data;
             }
         }
