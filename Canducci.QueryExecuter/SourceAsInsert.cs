@@ -9,66 +9,82 @@ using SqlKata;
 using SqlKata.Compilers;
 using System;
 using System.Data.Common;
-using System.Linq;
 using System.Threading.Tasks;
 //https://docs.microsoft.com/pt-br/dotnet/csharp/language-reference/preprocessor-directives/preprocessor-if
 namespace Canducci.QueryExecuter
 {
-    public sealed class SourceAsInsert: IDisposable
+    public sealed class SourceAsInsert : IDisposable
     {
-
-        private readonly DbConnection Connection;
-        private readonly Compiler Compiler;
+        private readonly DbConnection _connection;
+        private readonly Compiler _compiler;
 
         public SourceAsInsert(DbConnection connection, Compiler compiler)
         {
-            Connection = connection;
-            Compiler = compiler;
+            _connection = connection;
+            _compiler = compiler;
         }
 
+        /// <summary>
+        /// Insert
+        /// </summary>
+        /// <typeparam name="T">type</typeparam>
+        /// <param name="data">data</param>
+        /// <returns>data</returns>
 
         public T Insert<T>(T data)
         {
-            using ClassDescription<T> classDescription = new ClassDescription<T>(data);
-            bool auto = classDescription.PrimaryKeys.PrimaryKeyValues.Any(s => s.Auto);
-            Query query = new Query(classDescription.TableName.Name);
-            query.AsInsert(classDescription.Datas, auto);
-            SqlResult result = Compiler.Compile(query);
+            using ClassDescription<T> description = new ClassDescription<T>(data);
+            bool auto = description.GetAuto();
+            Query query = new Query(description.GetTableName());
+            query.AsInsert(description.GetData(), auto);
+            SqlResult result = _compiler.Compile(query);
             if (auto)
             {
-                int value = Connection.ExecuteScalar<int>(result.Sql, result.NamedBindings);
-                classDescription.SetPrimaryKeyValueInModel(value);
+                int value = _connection.ExecuteScalar<int>(result.Sql, result.NamedBindings);
+                description.SetPrimaryKeyValueInModel(value);
             }
             else
             {
-                Connection.Execute(result.Sql, result.NamedBindings);
+                _connection.Execute(result.Sql, result.NamedBindings);
             }
 
             return data;
         }
 
+        /// <summary>
+        /// Insert Async
+        /// </summary>
+        /// <typeparam name="T">type</typeparam>
+        /// <param name="data">data</param>
+        /// <returns>data</returns>
         public async Task<T> InsertAsync<T>(T data)
         {
-            using ClassDescription<T> classDescription = new ClassDescription<T>(data);
-            bool auto = classDescription.PrimaryKeys.PrimaryKeyValues.Any(s => s.Auto);
-            Query query = new Query(classDescription.TableName.Name);
-            query.AsInsert(classDescription.Datas, auto);
-            SqlResult result = Compiler.Compile(query);
+            using ClassDescription<T> description = new ClassDescription<T>(data);
+            bool auto = description.GetAuto();
+            Query query = new Query(description.GetTableName());
+            query.AsInsert(description.GetData(), auto);
+            SqlResult result = _compiler.Compile(query);
             if (auto)
             {
-                int value = await Connection.ExecuteScalarAsync<int>(result.Sql, result.NamedBindings);
-                await classDescription.SetPrimaryKeyValueInModel(value);
+                int value = await _connection.ExecuteScalarAsync<int>(result.Sql, result.NamedBindings);
+                await description.SetPrimaryKeyValueInModel(value);
             }
             else
             {
-                await Connection.ExecuteAsync(result.Sql, result.NamedBindings);
+                await _connection.ExecuteAsync(result.Sql, result.NamedBindings);
             }
 
             return data;
         }
+
+        #region Dispose
+        /// <summary>
+        /// Dispose
+        /// </summary>
         public void Dispose()
         {
             GC.SuppressFinalize(this);
         }
+        #endregion
     }
 }

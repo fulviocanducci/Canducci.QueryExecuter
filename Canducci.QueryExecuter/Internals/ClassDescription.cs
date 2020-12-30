@@ -9,67 +9,81 @@ namespace Canducci.QueryExecuter.Internals
 {
     internal class ClassDescription<T> : IDisposable
     {
-        public IReadOnlyList<PropertyInfo> Properties { get; private set; }
-        public PrimaryKeyAttribute PrimaryKeys { get; private set; }
-        public TableNameAttribute TableName { get; private set; }
-        public TypeInfo TypeInfoModel { get; private set; }
-        public T Model { get; private set; }
-        public IReadOnlyDictionary<string, object> Datas { get; private set; }
+        private readonly IReadOnlyList<PropertyInfo> _properties;
+        private readonly PrimaryKeyAttribute _primaryKeys;
+        private readonly TableNameAttribute _tableName;
+        private readonly TypeInfo _typeInfoModel;
+        private readonly T _model;
+        private readonly IReadOnlyDictionary<string, object> _data;
 
         public ClassDescription(T model)
         {
-            Model = model;
-            TypeInfoModel = GetTypeInfo();
-            PrimaryKeys = GetAttribute<PrimaryKeyAttribute>();
-            TableName = GetAttribute<TableNameAttribute>();
-            Datas = GetDatas();
+            _model = model;
+            _typeInfoModel = GetTypeInfo();
+            _primaryKeys = GetAttribute<PrimaryKeyAttribute>();
+            _tableName = GetAttribute<TableNameAttribute>();
+            _properties = _typeInfoModel.GetProperties().ToList();
+            _data = GetDatas();
         }
 
+        public string GetTableName() => _tableName.Name;
+        public IReadOnlyDictionary<string, object> GetData() => _data;
+        public bool GetAuto() => _primaryKeys.PrimaryKeyValues.Any(s => s.Auto);
+        public IReadOnlyDictionary<string, object> GetPrimaryKeysWithValue()
+        {
+            Dictionary<string, object> values = new Dictionary<string, object>(_primaryKeys.PrimaryKeyValues.Count);
+            _primaryKeys.PrimaryKeyValues.Select(x => x.Name)
+                .ToList()
+                .ForEach(x =>
+                {
+                    values.Add(x, _typeInfoModel.GetProperty(x).GetValue(_model));
+                });
+            return values;            
+        }
         public Task SetPrimaryKeyValueInModel<TKey>(TKey value)
         {
-            foreach (var primaryKeyValue in PrimaryKeys.PrimaryKeyValues)
+            foreach (var primaryKeyValue in _primaryKeys.PrimaryKeyValues)
             {
-                PropertyInfo propertyInfo = Properties
+                PropertyInfo propertyInfo = _properties
                     .Where(c => c.Name == primaryKeyValue.Name)
                     .FirstOrDefault();
                 if (propertyInfo != null)
                 {
-                    propertyInfo.SetValue(Model, value);
+                    propertyInfo.SetValue(_model, value);
                 }
             }
             return Task.Run(() => { });
         }
 
-        #region Internal
+        #region Private
 
-        internal TAttribute GetAttribute<TAttribute>() where TAttribute: Attribute
+        private TAttribute GetAttribute<TAttribute>() where TAttribute: Attribute
         {
-            return TypeInfoModel
+            return _typeInfoModel
                 .GetCustomAttributes()
                 .Where(c => c.GetType() == typeof(TAttribute))
                 .OfType<TAttribute>()
                 .FirstOrDefault();
         }        
 
-        internal TypeInfo GetTypeInfo()
+        private TypeInfo GetTypeInfo()
         {
-            return Model.GetType().GetTypeInfo();
+            return _model.GetType().GetTypeInfo();
         }
 
-        internal IReadOnlyDictionary<string, object> GetDatas()
-        {
-            Properties = TypeInfoModel.GetProperties().ToList();
-            int countData = Properties.Count - PrimaryKeys.PrimaryKeyValues.Where(c => c.Auto).Count();
+        private IReadOnlyDictionary<string, object> GetDatas()
+        {            
+            int countData = _properties.Count - _primaryKeys.PrimaryKeyValues.Where(c => c.Auto).Count();
             IDictionary<string, object> data = new Dictionary<string, object>(countData);
-            foreach (PropertyInfo property in Properties)
+            foreach (PropertyInfo property in _properties)
             {
-                foreach (var primaryKeyValue in PrimaryKeys.PrimaryKeyValues)
+                foreach (var primaryKeyValue in _primaryKeys.PrimaryKeyValues)
                 {
                     if (primaryKeyValue.Auto == true && primaryKeyValue.Name == property.Name)
                     {
                         continue;
                     }
-                    data[property.Name] = property.GetValue(Model);
+                    data[property.Name] = property.GetValue(_model);
                 }
             }
             return (IReadOnlyDictionary<string, object>)data;
@@ -77,9 +91,11 @@ namespace Canducci.QueryExecuter.Internals
 
         #endregion
 
+        #region Dispose
         public void Dispose()
         {
             System.GC.SuppressFinalize(this);
         }
+        #endregion
     }
 }

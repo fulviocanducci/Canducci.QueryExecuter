@@ -17,5 +17,19 @@ namespace Canducci.QueryExecuter
         {
             return await (new SourceAsInsert(connection, compiler).InsertAsync(data));
         }
+
+
+        public static bool Update<T>(this DbConnection connection, T data, Compiler compiler)
+            where T : class, new()
+        {
+            return new SourceAsUpdate(connection, compiler).Update(data);
+        }
+
+        public static async Task<bool> UpdateAsync<T>(this DbConnection connection, T data, Compiler compiler)
+            where T : class, new()
+        {
+            return await (new SourceAsUpdate(connection, compiler).UpdateAsync(data));
+        }
+
     }
 }
