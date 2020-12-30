@@ -35,12 +35,25 @@ namespace Canducci.QueryExecuter
             }
             return _compiler.Compile(query);
         }
+
+        /// <summary>
+        /// Update
+        /// </summary>
+        /// <typeparam name="T">type</typeparam>
+        /// <param name="data">data</param>
+        /// <returns>data</returns>
         public bool Update<T>(T data)
         {
             SqlResult result = GetResultUpdate(data);
             return _connection.Execute(result.Sql, result.NamedBindings) > 0;
         }
         
+        /// <summary>
+        /// Update Async
+        /// </summary>
+        /// <typeparam name="T">type</typeparam>
+        /// <param name="data">data</param>
+        /// <returns>data</returns>
         public async Task<bool> UpdateAsync<T>(T data)
         {
             SqlResult result = GetResultUpdate(data);
